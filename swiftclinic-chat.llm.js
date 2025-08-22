@@ -242,6 +242,23 @@
       performSend(text);
     }
 
+    function performSend(text){
+      try{ hideStarters(); }catch(_){ }
+      append('user', String(text||''));
+      input.value='';
+      showTyping(true);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-Session-ID': sessionId||'' },
+        body: JSON.stringify({ message: String(text||''), sessionId: sessionId||undefined, userConsent: true, metadata: buildMetadata() })
+      }).then(function(r){ return r.json(); }).then(function(res){
+        var data = (res && res.data) || {};
+        if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){ } }
+        if(data.message){ finishTypingWith(data.message); }
+        else { showTyping(false); }
+      }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); });
+    }
+
     // Starters are rendered right after the welcome message via renderStarters()
 
     // Public API
