@@ -207,9 +207,9 @@
         var items = block.split(/\n/).map(function(line){ return line.replace(/^\d+\. /,'').trim(); }).filter(Boolean);
         return '<ol>'+items.map(function(it){ return '<li>'+it+'</li>'; }).join('')+'</ol>';
       });
-      // Blockquotes: group consecutive lines starting with '>'
-      s = s.replace(/(^>.*(?:\n>.*)*)/gm, function(block){
-        var inner = block.split(/\n/).map(function(line){ return line.replace(/^>\s?/, ''); }).join('\n');
+      // Blockquotes: group consecutive lines starting with '>' (support after escaping as &gt;)
+      s = s.replace(/(^(?:&gt;|>)\s?.*(?:\n(?:&gt;|>)\s?.*)*)/gm, function(block){
+        var inner = block.split(/\n/).map(function(line){ return line.replace(/^(?:&gt;|>)\s?/, ''); }).join('\n');
         // render inner paragraphs with <br/> between lines
         inner = inner.split(/\n{2,}/).map(function(p){ return '<p>'+p.replace(/\n/g,'<br/>')+'</p>'; }).join('');
         return '<blockquote>'+inner+'</blockquote>';
