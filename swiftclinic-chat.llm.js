@@ -70,9 +70,8 @@
     input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendMessage(); } });
 
     var keySuffix = (webhookId || (function(){ try{ return btoa(endpoint).slice(0,16) }catch(_){ return 'url' } })());
-    var welcomeKey = 'swiftclinic_welcome_' + keySuffix;
-    var handshakeKey = 'swiftclinic_handshake_' + keySuffix;
-    var welcomeShown = (function(){ try{ return localStorage.getItem(welcomeKey) === '1' }catch(_){ return false } })();
+    var welcomeKey = 'swiftclinic_welcome_open_' + keySuffix; // session-only
+    var welcomeShown = (function(){ try{ return sessionStorage.getItem(welcomeKey) === '1' }catch(_){ return false } })();
     var appendedWelcomeThisOpen = false;
     function toggle(show){
       opened = show===undefined ? !opened : !!show;
@@ -81,12 +80,8 @@
       btn.setAttribute('aria-label', opened ? 'Close chat' : 'Open chat');
       if(opened){
         input.focus();
-        if(!welcomeShown && welcomeMessage && !appendedWelcomeThisOpen){ append('bot', welcomeMessage); appendedWelcomeThisOpen = true; welcomeShown = true; try{ localStorage.setItem(welcomeKey, '1') }catch(_){ } }
-        var shouldHandshake = (function(){ try{ return localStorage.getItem(handshakeKey) !== '1' }catch(_){ return msgs.childElementCount === 0 } })();
-        if(!sessionId && shouldHandshake){
-          try{ localStorage.setItem(handshakeKey, '1') }catch(_){ }
-          handshake();
-        }
+        if(!welcomeShown && welcomeMessage && !appendedWelcomeThisOpen && msgs.childElementCount===0){ append('bot', welcomeMessage); appendedWelcomeThisOpen = true; welcomeShown = true; try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ } }
+        if (msgs.childElementCount === 0) { handshake(); }
       } else {
         appendedWelcomeThisOpen = false;
       }
@@ -185,7 +180,7 @@
         var data = (res && res.data) || {};
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
         if(data.message){ finishTypingWith(data.message); }
-        else if(welcomeMessage && !welcomeShown){ finishTypingWith(welcomeMessage); try{ localStorage.setItem(welcomeKey, '1') }catch(_){ } welcomeShown = true; }
+        else if(welcomeMessage && !welcomeShown){ finishTypingWith(welcomeMessage); try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ } welcomeShown = true; }
         else { showTyping(false); }
       }).catch(function(){ showTyping(false); /* ignore */ });
     }
