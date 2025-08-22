@@ -69,8 +69,9 @@
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendMessage(); } });
 
+    function shortHash(str){ try{ str=String(str||''); var h=0; for(var i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0 } return h.toString(36); }catch(_){ return '0' } }
     var keySuffix = (webhookId || (function(){ try{ return btoa(endpoint).slice(0,16) }catch(_){ return 'url' } })());
-    var welcomeKey = 'swiftclinic_welcome_open_' + keySuffix; // session-only
+    var welcomeKey = 'swiftclinic_welcome_open_' + keySuffix + '_' + shortHash(welcomeMessage); // session-only, varies by message text
     var welcomeShown = (function(){ try{ return sessionStorage.getItem(welcomeKey) === '1' }catch(_){ return false } })();
     var appendedWelcomeThisOpen = false;
     function toggle(show){
