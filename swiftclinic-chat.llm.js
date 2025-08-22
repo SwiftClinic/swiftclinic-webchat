@@ -181,10 +181,21 @@
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
-        if(appendedWelcomeThisOpen){ showTyping(false); return; }
-        if(data.message){ finishTypingWith(data.message); }
-        else if(welcomeMessage && !welcomeShown){ finishTypingWith(welcomeMessage); try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ } welcomeShown = true; }
-        else { showTyping(false); }
+        // Prefer configured welcome on first open if provided
+        var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
+        if (preferLocalWelcome){
+          finishTypingWith(welcomeMessage);
+          try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ }
+          welcomeShown = true;
+        } else if (data.message){
+          finishTypingWith(data.message);
+        } else if (welcomeMessage && !welcomeShown){
+          finishTypingWith(welcomeMessage);
+          try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ }
+          welcomeShown = true;
+        } else {
+          showTyping(false);
+        }
       }).catch(function(){ showTyping(false); /* ignore */ });
     }
 
