@@ -105,6 +105,20 @@
     }
 
     var typingShownAt = 0;
+    function finishTypingWith(text){
+      var delay = Math.max(0, 2000 - (Date.now() - typingShownAt));
+      setTimeout(function(){
+        var t = msgs.querySelector('#sc-typing-bubble');
+        if(t){
+          t.id = '';
+          t.className = 'msg bot';
+          t.innerHTML = '<div class="md">'+renderMarkdown(String(text||''))+'</div>';
+          msgs.scrollTop = msgs.scrollHeight;
+        } else {
+          append('bot', String(text||''));
+        }
+      }, delay);
+    }
     function showTyping(show){
       if(show){
         typingShownAt = Date.now();
@@ -113,10 +127,11 @@
           t = document.createElement('div');
           t.id = 'sc-typing-bubble';
           t.className = 'msg bot typing-bubble';
-          t.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+          t.innerHTML = '<span class="dots" style="display:inline-flex;gap:4px"><span></span><span></span><span></span></span>';
           msgs.appendChild(t);
         }
-        t.style.display = 'block';
+        t.style.display = 'inline-block';
+        t.style.width = 'auto';
         msgs.scrollTop = msgs.scrollHeight;
       } else {
         var delay = Math.max(0, 2000 - (Date.now() - typingShownAt));
@@ -169,9 +184,10 @@
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
-        if(data.message){ append('bot', data.message); } else if(welcomeMessage && !welcomeShown){ append('bot', welcomeMessage); try{ localStorage.setItem(welcomeKey, '1') }catch(_){ } welcomeShown = true; }
-      }).catch(function(){ /* ignore */ })
-        .finally(function(){ showTyping(false); });
+        if(data.message){ finishTypingWith(data.message); }
+        else if(welcomeMessage && !welcomeShown){ finishTypingWith(welcomeMessage); try{ localStorage.setItem(welcomeKey, '1') }catch(_){ } welcomeShown = true; }
+        else { showTyping(false); }
+      }).catch(function(){ showTyping(false); /* ignore */ });
     }
 
     function sendMessage(){
@@ -184,9 +200,9 @@
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
-        if(data.message){ append('bot', data.message); }
-      }).catch(function(){ append('bot','Sorry, something went wrong. Please try again.'); })
-        .finally(function(){ showTyping(false); });
+        if(data.message){ finishTypingWith(data.message); }
+        else { showTyping(false); }
+      }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); });
     }
 
     // Public API
