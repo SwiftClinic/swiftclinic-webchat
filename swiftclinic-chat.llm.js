@@ -35,12 +35,12 @@
     var root = host.attachShadow({ mode:'open' });
 
     var style = document.createElement('style');
-    style.textContent = "\n.btn{position:fixed;bottom:20px;" + (position.indexOf('right')>=0?"right:20px;":"left:20px;") + "width:56px;height:56px;border-radius:50%;background:"+primaryColor+";color:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.25);cursor:pointer;font-size:22px}\n.panel{position:fixed;bottom:90px;" + (position.indexOf('right')>=0?"right:20px;":"left:20px;") + "width:360px;max-width:calc(100vw - 40px);height:520px;max-height:calc(100vh - 160px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.25);display:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif}\n.header{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:#fff;background:linear-gradient(135deg,"+primaryColor+" 0%,"+accentColor+" 100%)}\n.title{font-weight:700}.close{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer}\n.messages{height:calc(100% - 58px - 64px);overflow:auto;padding:12px;background:#f8fafc}\n.msg{max-width:80%;margin:6px 0;padding:10px 12px;border-radius:12px;line-height:1.35;font-size:14px}.user{background:#e2f0ff;margin-left:auto;border-top-right-radius:4px}.bot{background:#ecfdf5;margin-right:auto;border-top-left-radius:4px}\n.footer{height:64px;display:flex;align-items:center;gap:8px;padding:8px;border-top:1px solid #e5e7eb;background:#fff}\n.input{flex:1;height:42px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px;font-size:14px}.send{height:42px;padding:0 14px;background:"+primaryColor+";color:#fff;border:none;border-radius:10px;cursor:pointer}\n.typing{display:none;color:#6b7280;font-size:13px;padding:0 12px 8px}\n.dots{display:inline-flex;gap:4px}.dots span{width:6px;height:6px;border-radius:50%;background:#9ca3af;display:block;animation:blink 1s infinite}.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}\n";
+    style.textContent = "\n:host{all:initial}\n.btn{position:fixed;bottom:20px;" + (position.indexOf('right')>=0?"right:20px;":"left:20px;") + "width:56px;height:56px;border-radius:16px;background:"+primaryColor+";color:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.25);cursor:pointer;font-size:22px;transition:transform .1s ease, box-shadow .2s ease}\n.btn:hover{transform:translateY(-1px);box-shadow:0 14px 36px rgba(0,0,0,.28)}\n.panel{position:fixed;bottom:90px;" + (position.indexOf('right')>=0?"right:20px;":"left:20px;") + "width:380px;max-width:calc(100vw - 40px);height:560px;max-height:calc(100vh - 160px);background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(2,6,23,.25);display:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif;border:1px solid #e5e7eb}\n.header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;color:#0f172a;background:linear-gradient(180deg,rgba(255,255,255,.96) 0%,rgba(255,255,255,.92) 100%);border-bottom:1px solid #e5e7eb}\n.title{font-weight:700;letter-spacing:.2px;color:#0f172a}\n.badge{font-size:11px;padding:2px 6px;border-radius:999px;background:"+accentColor+";color:#022c22;margin-left:8px;font-weight:600;opacity:.9}\n.close{background:#0f172a10;border:none;color:#0f172a;width:32px;height:32px;border-radius:10px;cursor:pointer}\n.messages{height:calc(100% - 64px - 72px);overflow:auto;padding:16px;background:linear-gradient(180deg,#f8fafc 0%, #ffffff 100%)}\n.msg{max-width:82%;margin:8px 0;padding:12px 14px;border-radius:16px;line-height:1.45;font-size:14px;border:1px solid #e5e7eb}.user{background:#eff6ff;margin-left:auto;border-top-right-radius:6px}.bot{background:#f0fdf4;margin-right:auto;border-top-left-radius:6px}\n.msg .md{color:#0f172a}\n.msg .md a{color:"+primaryColor+";text-decoration:none}.msg .md a:hover{text-decoration:underline}\n.msg .md pre{background:#0b12201a;padding:10px;border-radius:10px;overflow:auto}.msg .md code{background:#0b12200d;padding:2px 4px;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,'Roboto Mono',monospace;font-size:12px}\n.msg .md h1,.msg .md h2,.msg .md h3{margin:.2em 0 .4em;font-weight:700}.msg .md h1{font-size:18px}.msg .md h2{font-size:16px}.msg .md h3{font-size:15px}\n.msg .md ul,.msg .md ol{padding-left:18px;margin:.4em 0}.msg .md li{margin:.2em 0}\n.footer{height:72px;display:flex;align-items:center;gap:10px;padding:12px;border-top:1px solid #e5e7eb;background:#fff}\n.input{flex:1;height:44px;border:1px solid #e5e7eb;border-radius:12px;padding:0 12px;font-size:14px;transition:border-color .15s ease}.input:focus{outline:none;border-color:"+primaryColor+"}.send{height:44px;padding:0 16px;background:"+primaryColor+";color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:600}\n.typing{display:none;color:#475569;font-size:13px;padding:2px 12px 10px}\n.dots{display:inline-flex;gap:4px}.dots span{width:6px;height:6px;border-radius:50%;background:#94a3b8;display:block;animation:blink 1s infinite}.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}\n";
     root.appendChild(style);
 
     var panel = document.createElement('div'); panel.className='panel';
     panel.innerHTML = ''+
-      '<div class="header"><div class="title">'+escapeHtml(clinicName)+'</div><button class="close" aria-label="Close">×</button></div>'+
+      '<div class="header"><div class="title">'+escapeHtml(clinicName)+'<span class="badge">Online</span></div><button class="close" aria-label="Close">×</button></div>'+
       '<div class="messages" id="sc-msgs"></div>'+
       '<div class="typing" id="sc-typing"><span class="dots"><span></span><span></span><span></span></span></div>'+
       '<div class="footer"><input id="sc-input" class="input" type="text" placeholder="Type a message..."/><button id="sc-send" class="send">Send</button></div>';
@@ -69,12 +69,43 @@
     function append(role, text){
       var el = document.createElement('div');
       el.className = 'msg ' + (role==='user' ? 'user' : 'bot');
-      el.innerHTML = escapeHtml(String(text||'')).replace(/\n/g,'<br/>');
+      if(role==='user'){
+        el.innerHTML = '<div class="md">'+escapeHtml(String(text||'')).replace(/\n/g,'<br/>')+'</div>';
+      } else {
+        el.innerHTML = '<div class="md">'+renderMarkdown(String(text||''))+'</div>';
+      }
       msgs.appendChild(el);
       msgs.scrollTop = msgs.scrollHeight;
     }
 
     function showTyping(show){ typing.style.display = show ? 'block' : 'none'; }
+
+    // Safe, lightweight Markdown renderer (basic subset)
+    function renderMarkdown(input){
+      var s = String(input||'');
+      s = escapeHtml(s);
+      s = s.replace(/```([\s\S]*?)```/g, function(_, code){ return '<pre><code>'+escapeHtml(code)+'</code></pre>'; });
+      s = s.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+      s = s.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+      s = s.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      s = s.replace(/^(?:- |\* )(.*)(?:\n(?:- |\* ).+)*$/gm, function(block){
+        var items = block.split(/\n/).map(function(line){ return line.replace(/^(?:- |\* )/,'').trim(); }).filter(Boolean);
+        return '<ul>'+items.map(function(it){ return '<li>'+it+'</li>'; }).join('')+'</ul>';
+      });
+      s = s.replace(/^\d+\. (.*)(?:\n\d+\. .+)*$/gm, function(block){
+        var items = block.split(/\n/).map(function(line){ return line.replace(/^\d+\. /,'').trim(); }).filter(Boolean);
+        return '<ol>'+items.map(function(it){ return '<li>'+it+'</li>'; }).join('')+'</ol>';
+      });
+      s = s.split(/\n{2,}/).map(function(p){
+        if(/^\s*<\/?(ul|ol|pre|h1|h2|h3)/.test(p)) return p;
+        return '<p>'+p.replace(/\n/g,'<br/>')+'</p>';
+      }).join('');
+      return s;
+    }
 
     function buildMetadata(){
       try{
