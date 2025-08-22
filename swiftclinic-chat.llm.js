@@ -113,7 +113,7 @@
         conversationStarters.forEach(function(label){
           var chip = document.createElement('button');
           chip.type='button'; chip.className='chip'; chip.textContent=String(label);
-          chip.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); hideStarters(); performSend(String(label)); });
+          chip.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); input.value = String(label); hideStarters(); sendMessage(); });
           bar.appendChild(chip);
         });
         msgs.appendChild(bar);
