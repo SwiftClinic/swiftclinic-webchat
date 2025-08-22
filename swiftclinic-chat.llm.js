@@ -65,12 +65,14 @@
     var closeBtn = panel.querySelector('.close');
     var opened = false;
 
-    btn.addEventListener('click', function(){ toggle(true); });
+    btn.addEventListener('click', function(){ toggle(); });
     closeBtn.addEventListener('click', function(){ toggle(false); });
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendMessage(); } });
 
-    var welcomeKey = 'swiftclinic_welcome_' + (webhookId || (function(){ try{ return btoa(endpoint).slice(0,16) }catch(_){ return 'url' } })());
+    var keySuffix = (webhookId || (function(){ try{ return btoa(endpoint).slice(0,16) }catch(_){ return 'url' } })());
+    var welcomeKey = 'swiftclinic_welcome_' + keySuffix;
+    var handshakeKey = 'swiftclinic_handshake_' + keySuffix;
     var welcomeShown = (function(){ try{ return localStorage.getItem(welcomeKey) === '1' }catch(_){ return false } })();
     function toggle(show){
       opened = show===undefined ? !opened : !!show;
@@ -80,7 +82,11 @@
       if(opened){
         input.focus();
         if(!welcomeShown && welcomeMessage){ append('bot', welcomeMessage); welcomeShown = true; try{ localStorage.setItem(welcomeKey, '1') }catch(_){ } }
-        handshake();
+        var shouldHandshake = (function(){ try{ return localStorage.getItem(handshakeKey) !== '1' }catch(_){ return msgs.childElementCount === 0 } })();
+        if(!sessionId && shouldHandshake){
+          try{ localStorage.setItem(handshakeKey, '1') }catch(_){ }
+          handshake();
+        }
       }
     }
 
