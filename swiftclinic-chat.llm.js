@@ -168,8 +168,8 @@
         var url = new URL(location.href); var params = url.searchParams; var utm = {};
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
-        return { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm };
-      }catch(_){ return { pageUrl: location.href, referrer: document.referrer||'' } }
+        return { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
+      }catch(_){ return { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage } }
     }
 
     function handshake(){
