@@ -123,7 +123,18 @@
     }
     function applyAllowed(list){
       var norm = normalizeAllowed(list);
-      if(norm.length){ allowedLangs = norm; try{ renderLangOptions(); }catch(_){ } }
+      if(norm.length){
+        allowedLangs = norm; // preserve incoming order
+        if(allowedLangs.indexOf(uiLanguage) === -1){
+          uiLanguage = allowedLangs[0];
+          try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ }
+        }
+        try{
+          renderLangOptions();
+          if(langSelect){ langSelect.value = uiLanguage; }
+          if(langFlag){ langFlag.src = codeToFlagUrl(uiLanguage); }
+        }catch(_){ }
+      }
     }
     function codeToRegionDefault(code){
       var base = (code||'en').toLowerCase();
