@@ -127,7 +127,7 @@
         return fetch(apiOriginForAux + '/translation/allowed').then(function(r){ return r.json(); }).then(function(j){
           if(j && Array.isArray(j.allowed) && j.allowed.length){ allowedLangs = j.allowed.map(function(c){ return String(c).toLowerCase(); }); }
           renderLangOptions();
-        }).catch(function(){ renderLangOptions(); return Promise.resolve(); }
+        }).catch(function(){ renderLangOptions(); return Promise.resolve(); });
       }catch(_){ renderLangOptions(); return Promise.resolve(); }
     }
     langSelect.addEventListener('change', function(){ uiLanguage = langSelect.value || 'en'; try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } langFlag.src = codeToFlagUrl(uiLanguage); });
