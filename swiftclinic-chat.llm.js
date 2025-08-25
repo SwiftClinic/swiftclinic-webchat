@@ -99,6 +99,32 @@
     var uiLanguage = (function(){ try{ return localStorage.getItem(langStorageKey) || defaultLang }catch(_){ return defaultLang } })();
     var allowedLangs = [];
 
+    function normalizeAllowed(input){
+      try{
+        var arr = [];
+        if(!input) return arr;
+        if(Array.isArray(input)) arr = input.slice();
+        else if(typeof input === 'string'){
+          var s = input.trim();
+          if(s.startsWith('[')) { try{ arr = JSON.parse(s); }catch(_){ arr = s.split(','); } }
+          else arr = s.split(',');
+        } else if(typeof input === 'object'){
+          if(Array.isArray(input.allowed)) arr = input.allowed.slice();
+        }
+        arr = arr.map(function(code){ return String(code||'').trim(); }).filter(Boolean);
+        // validate ISO 639-1 with optional region
+        var re = /^[a-zA-Z]{2}(?:[-_][a-zA-Z]{2})?$/;
+        arr = arr.filter(function(code){ return re.test(code); }).map(function(code){ return code.replace('_','-').toLowerCase(); });
+        // de-duplicate
+        var seen = {}; var out = [];
+        arr.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push(c) } });
+        return out;
+      }catch(_){ return []; }
+    }
+    function applyAllowed(list){
+      var norm = normalizeAllowed(list);
+      if(norm.length){ allowedLangs = norm; try{ renderLangOptions(); }catch(_){ } }
+    }
     function codeToRegionDefault(code){
       var base = (code||'en').toLowerCase();
       if(base==='en') return 'GB'; if(base==='fr') return 'FR'; if(base==='de') return 'DE'; if(base==='es') return 'ES'; if(base==='it') return 'IT'; if(base==='pt') return 'PT';
@@ -125,8 +151,8 @@
     function fetchAllowed(){
       try{
         return fetch(apiOriginForAux + '/translation/allowed').then(function(r){ return r.json(); }).then(function(j){
-          if(j && Array.isArray(j.allowed) && j.allowed.length){ allowedLangs = j.allowed.map(function(c){ return String(c).toLowerCase(); }); }
-          renderLangOptions();
+          if(j){ if(Array.isArray(j.allowed)){ applyAllowed(j.allowed); } else { applyAllowed(j); }
+          } else { renderLangOptions(); }
         }).catch(function(){ renderLangOptions(); return Promise.resolve(); });
       }catch(_){ renderLangOptions(); return Promise.resolve(); }
     }
@@ -285,6 +311,10 @@
         body: JSON.stringify({ message: '', sessionId: sessionId||undefined, userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
+        try{
+          var allowedFromServer = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
+          if(allowedFromServer){ applyAllowed(allowedFromServer); }
+        }catch(_){ }
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
@@ -322,6 +352,10 @@
         body: JSON.stringify({ message: String(text||''), sessionId: sessionId||undefined, userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
+        try{
+          var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
+          if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
+        }catch(_){ }
         if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){ } }
         if(data.message){ finishTypingWith(data.message); }
         else { showTyping(false); }
