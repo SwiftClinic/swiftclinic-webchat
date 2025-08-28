@@ -42,8 +42,10 @@
     var autoOpen     = String(ds.autoOpen||'false')==='true';
     var uiScale     = (function(){ var v=parseFloat(ds.scale||ds.uiScale||'1'); return (v&&v>0)? v : 1; })();
 
-    var sessionKey = 'swiftclinic_session_' + (webhookId || (function(){ try{ return btoa(endpoint).slice(0,16) }catch(_){ return 'url' } })());
-    var sessionId  = (function(){ try{ return localStorage.getItem(sessionKey) || '' }catch(_){ return '' } })();
+    var sessionId = '';
+    var firstPost = true;
+    var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
+    try{ window.addEventListener('beforeunload', function(){ sessionId=''; }); }catch(_){ }
 
     var host = document.createElement('div');
     host.style.position='fixed'; host.style.zIndex='2147483647'; host.style.bottom='20px';
@@ -310,23 +312,25 @@
         var url = new URL(location.href); var params = url.searchParams; var utm = {};
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
-        return { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
-      }catch(_){ return { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage } }
+        var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
+        if(firstPost){ meta.forceNewSession = true; }
+        return meta;
+      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(firstPost){ fallback.forceNewSession = true; } return fallback }
     }
 
     function handshake(){
       showTyping(true);
       fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type':'application/json', 'X-Session-ID': sessionId||'' },
-        body: JSON.stringify({ message: '', sessionId: sessionId||undefined, userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
+        headers: { 'Content-Type':'application/json', 'X-Session-ID': (firstPost ? '' : (sessionId||'')) },
+        body: JSON.stringify({ message: '', sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         try{
           var allowedFromServer = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
           if(allowedFromServer){ applyAllowed(allowedFromServer); }
         }catch(_){ }
-        if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){} }
+        if(data.sessionId){ sessionId = data.sessionId; }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
         if (preferLocalWelcome){
@@ -342,7 +346,7 @@
         } else {
           showTyping(false);
         }
-      }).catch(function(){ showTyping(false); /* ignore */ });
+      }).catch(function(){ showTyping(false); /* ignore */ }).finally(function(){ firstPost = false; });
     }
 
     function sendMessage(){
@@ -359,24 +363,24 @@
       showTyping(true);
       fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type':'application/json', 'X-Session-ID': sessionId||'' },
-        body: JSON.stringify({ message: String(text||''), sessionId: sessionId||undefined, userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
+        headers: { 'Content-Type':'application/json', 'X-Session-ID': (firstPost ? '' : (sessionId||'')) },
+        body: JSON.stringify({ message: String(text||''), sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         try{
           var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
           if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
         }catch(_){ }
-        if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){ } }
+        if(data.sessionId){ sessionId = data.sessionId; }
         if(data.message){ finishTypingWith(data.message); }
         else { showTyping(false); }
-      }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); });
+      }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; });
     }
 
     // Starters are rendered right after the welcome message via renderStarters()
 
     // Public API
-    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ append('user', t); showTyping(true); fetch(endpoint,{ method:'POST', headers:{'Content-Type':'application/json','X-Session-ID': sessionId||''}, body: JSON.stringify({ message:t, sessionId: sessionId||undefined, userConsent:true, uiLanguage: uiLanguage, metadata: buildMetadata() }) }).then(function(r){ return r.json() }).then(function(res){ var d=(res&&res.data)||{}; if(d.sessionId){ sessionId=d.sessionId; try{ localStorage.setItem(sessionKey, sessionId) }catch(_){}} if(d.message){ append('bot', d.message) } }).catch(function(){ append('bot','Sorry, something went wrong.') }).finally(function(){ showTyping(false) }) } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } } }; }catch(_){ }
+    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ append('user', t); showTyping(true); fetch(endpoint,{ method:'POST', headers:{'Content-Type':'application/json','X-Session-ID': (firstPost ? '' : (sessionId||''))}, body: JSON.stringify({ message:t, sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent:true, uiLanguage: uiLanguage, metadata: buildMetadata() }) }).then(function(r){ return r.json() }).then(function(res){ var d=(res&&res.data)||{}; if(d.sessionId){ sessionId=d.sessionId; } if(d.message){ append('bot', d.message) } }).catch(function(){ append('bot','Sorry, something went wrong.') }).finally(function(){ firstPost=false; showTyping(false) }) } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } } }; }catch(_){ }
 
     if(autoOpen){ toggle(true); }
 
