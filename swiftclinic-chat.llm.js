@@ -47,6 +47,7 @@
     var SESSION_KEY = 'swiftclinic_chat_session:' + scHost + ':' + (webhookId || '');
     var sessionId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
     var firstPost = true;
+    var handshakePromise = null;
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
     try{ window.addEventListener('beforeunload', function(){ sessionId=''; }); }catch(_){ }
 
@@ -204,7 +205,7 @@
       if(opened){
         input.focus();
         if(!welcomeShown && welcomeMessage && !appendedWelcomeThisOpen && msgs.childElementCount===0){ append('bot', welcomeMessage); appendedWelcomeThisOpen = true; welcomeShown = true; try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ } if(!startersDismissed){ renderStarters(); } }
-        if (msgs.childElementCount === 0) { handshake(); }
+        if (msgs.childElementCount === 0) { handshakePromise = handshake(); }
       } else {
         appendedWelcomeThisOpen = false;
       }
@@ -331,7 +332,7 @@
       showTyping(true);
       var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (firstPost ? '' : (sessionId||'')) };
       if(firstPost){ hsHeaders['X-New-Session'] = '1'; }
-      fetch(endpoint, {
+      return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
         body: JSON.stringify({ message: '', sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
@@ -372,28 +373,35 @@
       append('user', String(text||''));
       input.value='';
       showTyping(true);
-      var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (firstPost ? '' : (sessionId||'')) };
-      if(firstPost){ sendHeaders['X-New-Session'] = '1'; }
-      fetch(endpoint, {
-        method: 'POST',
-        headers: sendHeaders,
-        body: JSON.stringify({ message: String(text||''), sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
-      }).then(function(r){ return r.json(); }).then(function(res){
-        var data = (res && res.data) || {};
-        try{
-          var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
-          if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
-        }catch(_){ }
-        if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
-        if(data.message){ finishTypingWith(data.message); }
-        else { showTyping(false); }
-      }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; });
+      var sendNow = function(){
+        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||'') };
+        fetch(endpoint, {
+          method: 'POST',
+          headers: sendHeaders,
+          body: JSON.stringify({ message: String(text||''), sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
+        }).then(function(r){ return r.json(); }).then(function(res){
+          var data = (res && res.data) || {};
+          try{
+            var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
+            if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
+          }catch(_){ }
+          if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+          if(data.message){ finishTypingWith(data.message); }
+          else { showTyping(false); }
+        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; });
+      };
+      if(firstPost){
+        if(!handshakePromise){ handshakePromise = handshake(); }
+        try{ handshakePromise.finally(sendNow); }catch(_){ sendNow(); }
+      } else {
+        sendNow();
+      }
     }
 
     // Starters are rendered right after the welcome message via renderStarters()
 
     // Public API
-    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ append('user', t); showTyping(true); var apiHeaders={'Content-Type':'application/json','X-Session-ID': (firstPost ? '' : (sessionId||''))}; if(firstPost){ apiHeaders['X-New-Session']='1'; } fetch(endpoint,{ method:'POST', headers: apiHeaders, body: JSON.stringify({ message:t, sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent:true, uiLanguage: uiLanguage, metadata: buildMetadata() }) }).then(function(r){ return r.json() }).then(function(res){ var d=(res&&res.data)||{}; if(d.sessionId){ sessionId=d.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } } if(d.message){ append('bot', d.message) } }).catch(function(){ append('bot','Sorry, something went wrong.') }).finally(function(){ firstPost=false; showTyping(false) }) } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; } }; }catch(_){ }
+    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ performSend(String(t)); } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; } }; }catch(_){ }
 
     if(autoOpen){ toggle(true); }
 
