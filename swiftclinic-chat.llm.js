@@ -48,6 +48,7 @@
     var sessionId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
     var firstPost = true;
     var handshakePromise = null;
+    var isFirstUserSend = true;
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
     try{ window.addEventListener('beforeunload', function(){ sessionId=''; }); }catch(_){ }
 
@@ -317,26 +318,25 @@
       return s;
     }
 
-    function buildMetadata(){
+    function buildMetadata(includeForceFlag){
       try{
         var url = new URL(location.href); var params = url.searchParams; var utm = {};
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
         if(sessionId){ meta.sessionId = sessionId; }
-        if(firstPost){ meta.forceNewSession = true; }
+        if(includeForceFlag && isFirstUserSend){ meta.forceNewSession = true; }
         return meta;
-      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(sessionId){ fallback.sessionId = sessionId; } if(firstPost){ fallback.forceNewSession = true; } return fallback }
+      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(sessionId){ fallback.sessionId = sessionId; } if(includeForceFlag && isFirstUserSend){ fallback.forceNewSession = true; } return fallback }
     }
 
     function handshake(){
       showTyping(true);
-      var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (firstPost ? '' : (sessionId||'')) };
-      if(firstPost){ hsHeaders['X-New-Session'] = '1'; }
+      var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||'') };
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
-        body: JSON.stringify({ message: '', sessionId: (firstPost ? "" : (sessionId||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
+        body: JSON.stringify({ message: '', sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(false) })
       }).then(function(r){ return r.json(); }).then(function(res){
         var data = (res && res.data) || {};
         try{
@@ -376,10 +376,11 @@
       showTyping(true);
       var sendNow = function(){
         var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||'') };
+        if(isFirstUserSend){ sendHeaders['X-New-Session'] = '1'; }
         fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
-          body: JSON.stringify({ message: String(text||''), sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata() })
+          body: JSON.stringify({ message: String(text||''), sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
         }).then(function(r){ return r.json(); }).then(function(res){
           var data = (res && res.data) || {};
           try{
@@ -389,7 +390,7 @@
           if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
-        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; });
+        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; isFirstUserSend = false; });
       };
       if(firstPost){
         if(!handshakePromise){ handshakePromise = handshake(); }
