@@ -323,9 +323,10 @@
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
+        if(sessionId){ meta.sessionId = sessionId; }
         if(firstPost){ meta.forceNewSession = true; }
         return meta;
-      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(firstPost){ fallback.forceNewSession = true; } return fallback }
+      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(sessionId){ fallback.sessionId = sessionId; } if(firstPost){ fallback.forceNewSession = true; } return fallback }
     }
 
     function handshake(){
