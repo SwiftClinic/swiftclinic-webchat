@@ -44,8 +44,11 @@
     var autoOpen     = String(ds.autoOpen||'false')==='true';
     var uiScale     = (function(){ var v=parseFloat(ds.scale||ds.uiScale||'1'); return (v&&v>0)? v : 1; })();
 
-    // Namespaced session storage key: host + webhookId
-    var scHost = (function(){ try{ return (location && location.host) ? String(location.host) : 'unknown' }catch(_){ return 'unknown' } })();
+    // Namespaced session storage key: API host + webhookId (distinguish monolith vs PMS hosts)
+    var scHost = (function(){
+      try{ return (new URL(endpoint)).host || 'unknown'; }catch(_){ }
+      try{ return (location && location.host) ? String(location.host) : 'unknown'; }catch(_){ return 'unknown' }
+    })();
     var SESSION_KEY = 'swiftclinic_chat_session:' + scHost + ':' + (webhookId || '');
     var sessionId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
     var firstPost = true;
