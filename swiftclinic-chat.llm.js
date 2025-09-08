@@ -6,8 +6,12 @@
 */
 (function(){
   try{
-    // Prevent double-initialization if the script is included twice
-    try{ if(window.__SwiftClinicChatMounted){ return; } window.__SwiftClinicChatMounted = true; }catch(_){ }
+    // Prevent double-initialization if the script is included twice or another build already mounted
+    try{
+      if(window.__SwiftClinicChatMounted){ return; }
+      if(window.SwiftClinicChat && typeof window.SwiftClinicChat.send === 'function'){ return; }
+      window.__SwiftClinicChatMounted = true;
+    }catch(_){ }
     var scriptEl = document.currentScript || (function(){ var s=document.getElementsByTagName('script'); return s[s.length-1] })();
     if(!scriptEl) return;
     var ds = scriptEl.dataset || {};
