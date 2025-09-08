@@ -60,6 +60,8 @@
     var isFirstUserSend = true;
     var sendInFlight = false;
     var dispatchGuard = false; // prevents duplicate send dispatch across multiple handlers
+    var lastTriggerSource = 'unknown';
+    var debugEnabled = (function(){ try{ return String(ds.debug||'')==='1' }catch(_){ return false } })();
     var haveServerSession = !!sessionId;
     var sessionAcquirePromise = null;
     var pendingSends = [];
@@ -201,7 +203,7 @@
 
     btn.addEventListener('click', function(){ toggle(); });
     closeBtn.addEventListener('click', function(){ toggle(false); });
-    sendBtn.addEventListener('click', function(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(_){ } sendMessage(); });
+    sendBtn.addEventListener('click', function(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(_){ } lastTriggerSource='send-button'; if(debugEnabled) try{ console.debug('[SwiftClinicChat] trigger=send-button'); }catch(_){ } sendMessage(); });
     var enterDebounce = false;
     input.addEventListener('keydown', function(e){
       if(e.key==='Enter'){
@@ -210,6 +212,7 @@
         if(enterDebounce) return;
         enterDebounce = true;
         setTimeout(function(){ enterDebounce=false; }, 250);
+        lastTriggerSource='enter-key'; if(debugEnabled) try{ console.debug('[SwiftClinicChat] trigger=enter-key'); }catch(_){ }
         sendMessage();
       }
     });
@@ -250,7 +253,7 @@
         conversationStarters.forEach(function(label){
           var chip = document.createElement('button');
           chip.type='button'; chip.className='chip'; chip.textContent=String(label);
-          chip.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); var text=String(label); input.value = text; startersDismissed = true; hideStarters(); performSend(text); input.value=''; });
+          chip.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); var text=String(label); lastTriggerSource='starter-chip'; if(debugEnabled) try{ console.debug('[SwiftClinicChat] trigger=starter-chip'); }catch(_){ } input.value = text; startersDismissed = true; hideStarters(); sendMessage(text); input.value=''; });
           bar.appendChild(chip);
         });
         msgs.appendChild(bar);
@@ -406,8 +409,8 @@
       }).catch(function(){ showTyping(false); /* ignore */ }).finally(function(){ firstPost = false; });
     }
 
-    function sendMessage(){
-      var text = (input.value || '').trim(); if(!text) return;
+    function sendMessage(forcedText){
+      var text = (typeof forcedText === 'string' ? forcedText : (input.value || '')).trim(); if(!text) return;
       if(dispatchGuard || sendInFlight){ return; }
       dispatchGuard = true;
       startersDismissed = true;
@@ -437,10 +440,11 @@
         var msgId = (function(){ try{ return 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return 'msg_'+Date.now(); } })();
         var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
         if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
+        if(debugEnabled){ try{ sendHeaders['X-Debug-Trigger'] = String(lastTriggerSource||'unknown'); sendHeaders['X-Debug-Client-Message-Id'] = msgId; }catch(_){ } }
         var p = fetch(endpoint, {
           method: 'POST',
           headers: (function(h){ try{ delete h['X-Client-Message-Id']; }catch(_){ } return h; })(sendHeaders),
-          body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.clientMessageId = msgId; }catch(_){ } return m; })(buildMetadata(shouldForceNew)) })
+          body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.clientMessageId = msgId; m.clientTrigger = String(lastTriggerSource||'unknown'); }catch(_){ } return m; })(buildMetadata(shouldForceNew)) })
         }).then(function(r){ return r.text(); }).then(function(t){ try{ return t?JSON.parse(t):{} }catch(_){ return {} } }).then(function(res){
           var data = (res && res.data) || {};
           try{
@@ -475,7 +479,11 @@
       };
       if(firstPost){
         if(!handshakePromise){ handshakePromise = handshake(); }
-        try{ handshakePromise.finally(sendNow); }catch(_){ sendNow(); }
+        // attach only once per dispatch to avoid duplicate finally callbacks
+        var attached = false;
+        try{
+          handshakePromise.finally(function(){ if(attached) return; attached = true; sendNow(); });
+        }catch(_){ sendNow(); }
       } else {
         sendNow();
       }
