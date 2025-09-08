@@ -6,6 +6,8 @@
 */
 (function(){
   try{
+    // Prevent double-initialization if the script is included twice
+    try{ if(window.__SwiftClinicChatMounted){ return; } window.__SwiftClinicChatMounted = true; }catch(_){ }
     var scriptEl = document.currentScript || (function(){ var s=document.getElementsByTagName('script'); return s[s.length-1] })();
     if(!scriptEl) return;
     var ds = scriptEl.dataset || {};
@@ -51,7 +53,7 @@
     var isFirstUserSend = true;
     var sendInFlight = false;
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
-    try{ window.addEventListener('beforeunload', function(){ sessionId=''; }); }catch(_){ }
+    try{ window.addEventListener('beforeunload', function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; isFirstUserSend=true; firstPost=true; }); }catch(_){ }
 
     // Optional: allow forcing a fresh session via data-new-session="1"
     try{
