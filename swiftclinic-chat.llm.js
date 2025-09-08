@@ -59,6 +59,9 @@
       if(forceNewOnLoad){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; }
     }catch(_){ }
 
+    // If this page load is a browser reload, force a fresh client session
+    try{ if(isReload){ localStorage.removeItem(SESSION_KEY); sessionId=''; firstPost=true; isFirstUserSend=true; } }catch(_){ }
+
     var host = document.createElement('div');
     host.style.position='fixed'; host.style.zIndex='2147483647'; host.style.bottom='20px';
     host.style.right = position.indexOf('right')>=0 ? '20px' : '';
