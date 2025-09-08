@@ -379,10 +379,11 @@
       showTyping(true);
       var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
       var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||storedIdHS||'') };
+      if(debugEnabled){ try{ hsHeaders['X-Debug-Event'] = 'handshake'; }catch(_){ } }
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
-        body: JSON.stringify({ message: '', sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(false) })
+        body: JSON.stringify({ message: '', sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.init = true; }catch(_){ } return m; })(buildMetadata(false)) })
       }).then(function(r){ return r.text(); }).then(function(t){ try{ return t?JSON.parse(t):{} }catch(_){ return {} } }).then(function(res){
         var data = (res && res.data) || {};
         try{
