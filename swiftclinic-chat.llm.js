@@ -345,10 +345,13 @@
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
         var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
         var effectiveId = sessionId || storedId;
-        if(effectiveId){ meta.sessionId = effectiveId; }
+        // On a force-new send, do NOT include any prior sessionId in metadata
+        if(!(includeForceFlag && isFirstUserSend)){
+          if(effectiveId){ meta.sessionId = effectiveId; }
+        }
         if(includeForceFlag && isFirstUserSend){ meta.forceNewSession = true; }
         return meta;
-      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(sessionId){ fallback.sessionId = sessionId; } if(includeForceFlag && isFirstUserSend){ fallback.forceNewSession = true; } return fallback }
+      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(!(includeForceFlag && isFirstUserSend)){ if(sessionId){ fallback.sessionId = sessionId; } } if(includeForceFlag && isFirstUserSend){ fallback.forceNewSession = true; } return fallback }
     }
 
     function handshake(){
