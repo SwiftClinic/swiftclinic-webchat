@@ -55,8 +55,9 @@
     var handshakePromise = null;
     var isFirstUserSend = true;
     var sendInFlight = false;
+    var haveServerSession = !!sessionId;
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
-    try{ window.addEventListener('beforeunload', function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; isFirstUserSend=true; firstPost=true; }); }catch(_){ }
+    try{ window.addEventListener('beforeunload', function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; isFirstUserSend=true; firstPost=true; haveServerSession=false; }); }catch(_){ }
 
     // Optional: allow forcing a fresh session via data-new-session="1"
     try{
@@ -65,7 +66,7 @@
     }catch(_){ }
 
     // If this page load is a browser reload, force a fresh client session
-    try{ if(isReload){ localStorage.removeItem(SESSION_KEY); sessionId=''; firstPost=true; isFirstUserSend=true; } }catch(_){ }
+    try{ if(isReload){ localStorage.removeItem(SESSION_KEY); sessionId=''; firstPost=true; isFirstUserSend=true; haveServerSession=false; } }catch(_){ }
 
     var host = document.createElement('div');
     host.style.position='fixed'; host.style.zIndex='2147483647'; host.style.bottom='20px';
@@ -364,7 +365,7 @@
           var allowedFromServer = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
           if(allowedFromServer){ applyAllowed(allowedFromServer); }
         }catch(_){ }
-        if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+        if(data.sessionId){ sessionId = data.sessionId; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
         if (preferLocalWelcome){
@@ -401,20 +402,20 @@
       var sendNow = function(){
         var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
         var effectiveIdSN = sessionId || storedIdSN;
-        // On the very first user message, explicitly force new and DO NOT send any prior sessionId
-        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (isFirstUserSend ? '' : (effectiveIdSN||'')) };
-        if(isFirstUserSend){ sendHeaders['X-New-Session'] = '1'; }
+        var shouldForceNew = (isFirstUserSend && !haveServerSession);
+        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
+        if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
         fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
-          body: JSON.stringify({ message: String(text||''), sessionId: (isFirstUserSend ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
+          body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(shouldForceNew) })
         }).then(function(r){ return r.json(); }).then(function(res){
           var data = (res && res.data) || {};
           try{
             var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
             if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
           }catch(_){ }
-          if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+          if(data.sessionId){ sessionId = data.sessionId; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
         }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; isFirstUserSend = false; sendInFlight = false; });
