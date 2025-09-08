@@ -56,6 +56,8 @@
     var isFirstUserSend = true;
     var sendInFlight = false;
     var haveServerSession = !!sessionId;
+    var sessionAcquirePromise = null;
+    var pendingSends = [];
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
     try{ window.addEventListener('beforeunload', function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; isFirstUserSend=true; firstPost=true; haveServerSession=false; }); }catch(_){ }
 
@@ -395,6 +397,11 @@
     }
 
     function performSend(text){
+      // If we're still acquiring the very first server session, queue this send
+      if(sessionAcquirePromise && !haveServerSession){
+        pendingSends.push(String(text||''));
+        return;
+      }
       if(sendInFlight){ return; }
       sendInFlight = true;
       startersDismissed = true;
@@ -408,7 +415,7 @@
         var shouldForceNew = (isFirstUserSend && !haveServerSession);
         var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
         if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
-        fetch(endpoint, {
+        var p = fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
           body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(shouldForceNew) })
@@ -421,7 +428,27 @@
           if(data.sessionId){ sessionId = data.sessionId; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
-        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; isFirstUserSend = false; sendInFlight = false; });
+        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){
+          firstPost = false;
+          if(shouldForceNew){ isFirstUserSend = false; }
+          sendInFlight = false;
+          // If we were acquiring session, release waiters and flush queue
+          if(shouldForceNew){ sessionAcquirePromise = null; }
+          try{
+            if(pendingSends.length && haveServerSession){
+              var queue = pendingSends.slice(); pendingSends.length = 0;
+              // Send queued messages sequentially to preserve order
+              (function sendNext(){
+                if(!queue.length) return;
+                var next = queue.shift();
+                performSend(next);
+                // Defer chaining to allow sendInFlight lifecycle
+                setTimeout(sendNext, 0);
+              })();
+            }
+          }catch(_){ }
+        });
+        if(shouldForceNew){ sessionAcquirePromise = p; }
       };
       if(firstPost){
         if(!handshakePromise){ handshakePromise = handshake(); }
