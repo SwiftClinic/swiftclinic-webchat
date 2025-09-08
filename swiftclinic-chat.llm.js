@@ -86,7 +86,7 @@
     panel.innerHTML = ''+
       '<div class="header"><div class="title">'+escapeHtml(clinicName)+'<span class="badge">Online</span></div><div class="lang" id="sc-lang"><img id="sc-lang-flag" alt=""/><select id="sc-lang-select"></select></div><button class="close" aria-label="Close">×</button></div>'+
       '<div class="messages" id="sc-msgs"></div>'+
-      '<div class="footer"><input id="sc-input" class="input" type="text" placeholder="Type a message..."/><button id="sc-send" class="send">Send</button></div>'+
+      '<div class="footer"><input id="sc-input" class="input" type="text" placeholder="Type a message..."/><button id="sc-send" class="send" type="button">Send</button></div>'+
       '<div class="brand"><a class="brand-link" href="https://www.swiftclinic.ai" target="_blank" rel="noopener noreferrer"><span>Powered by</span><img src="https://i.imgur.com/ZTzanHB.png" alt="SwiftClinic"/></a></div>';
     root.appendChild(panel);
     // Ensure closed by default
@@ -185,8 +185,17 @@
 
     btn.addEventListener('click', function(){ toggle(); });
     closeBtn.addEventListener('click', function(){ toggle(false); });
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ sendMessage(); } });
+    sendBtn.addEventListener('click', function(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(_){ } sendMessage(); });
+    var enterDebounce = false;
+    input.addEventListener('keydown', function(e){
+      if(e.key==='Enter'){
+        try{ e.preventDefault(); e.stopPropagation(); }catch(_){ }
+        if(enterDebounce) return;
+        enterDebounce = true;
+        setTimeout(function(){ enterDebounce=false; }, 250);
+        sendMessage();
+      }
+    });
     // initialize language dropdown
     try{ langFlag.src = (function(){ try{ return codeToFlagUrl(uiLanguage) }catch(_){ return '' } })(); }catch(_){ }
     fetchAllowed();
@@ -368,6 +377,7 @@
 
     function sendMessage(){
       var text = (input.value || '').trim(); if(!text) return;
+      if(sendInFlight){ return; }
       startersDismissed = true;
       performSend(text);
     }
