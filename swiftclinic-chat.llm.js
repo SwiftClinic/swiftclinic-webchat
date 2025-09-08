@@ -356,6 +356,21 @@
       }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(!includeForceFlag){ if(sessionId){ fallback.sessionId = sessionId; } } if(includeForceFlag){ fallback.forceNewSession = true; } return fallback }
     }
 
+    function extractSessionId(res){
+      try{
+        var cand = null;
+        if(res){
+          if(res.sessionId) cand = res.sessionId;
+          if(!cand && res.data && res.data.sessionId) cand = res.data.sessionId;
+          if(!cand && res.data && res.data.session_id) cand = res.data.session_id;
+          if(!cand && res.data && res.data.id && /[_a-z0-9]{6,}/i.test(String(res.data.id))) cand = res.data.id;
+          if(!cand && res.metadata && res.metadata.sessionId) cand = res.metadata.sessionId;
+          if(!cand && res.data && res.data.metadata && res.data.metadata.sessionId) cand = res.data.metadata.sessionId;
+        }
+        return cand || '';
+      }catch(_){ return ''; }
+    }
+
     function handshake(){
       showTyping(true);
       var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
@@ -370,7 +385,8 @@
           var allowedFromServer = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
           if(allowedFromServer){ applyAllowed(allowedFromServer); }
         }catch(_){ }
-        if(data.sessionId){ sessionId = data.sessionId; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+        var sid = extractSessionId(res);
+        if(sid){ sessionId = sid; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
         if (preferLocalWelcome){
@@ -426,7 +442,8 @@
             var allowedFromServer2 = (data && data.metadata && (data.metadata.translation_allowed || data.metadata.translationAllowed || data.metadata.allowed_languages)) || data.translation_allowed || data.translationAllowed;
             if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
           }catch(_){ }
-          if(data.sessionId){ sessionId = data.sessionId; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+          var sid2 = extractSessionId(res);
+          if(sid2){ sessionId = sid2; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
         }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){
