@@ -324,7 +324,9 @@
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
-        if(sessionId){ meta.sessionId = sessionId; }
+        var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+        var effectiveId = sessionId || storedId;
+        if(effectiveId){ meta.sessionId = effectiveId; }
         if(includeForceFlag && isFirstUserSend){ meta.forceNewSession = true; }
         return meta;
       }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(sessionId){ fallback.sessionId = sessionId; } if(includeForceFlag && isFirstUserSend){ fallback.forceNewSession = true; } return fallback }
@@ -332,7 +334,8 @@
 
     function handshake(){
       showTyping(true);
-      var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||'') };
+      var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+      var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||storedIdHS||'') };
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
@@ -375,12 +378,14 @@
       input.value='';
       showTyping(true);
       var sendNow = function(){
-        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||'') };
+        var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+        var effectiveIdSN = sessionId || storedIdSN;
+        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (effectiveIdSN||'') };
         if(isFirstUserSend){ sendHeaders['X-New-Session'] = '1'; }
         fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
-          body: JSON.stringify({ message: String(text||''), sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
+          body: JSON.stringify({ message: String(text||''), sessionId: (effectiveIdSN||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
         }).then(function(r){ return r.json(); }).then(function(res){
           var data = (res && res.data) || {};
           try{
