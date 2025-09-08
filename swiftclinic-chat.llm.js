@@ -59,6 +59,7 @@
     var handshakePromise = null;
     var isFirstUserSend = true;
     var sendInFlight = false;
+    var dispatchGuard = false; // prevents duplicate send dispatch across multiple handlers
     var haveServerSession = !!sessionId;
     var sessionAcquirePromise = null;
     var pendingSends = [];
@@ -205,6 +206,7 @@
     input.addEventListener('keydown', function(e){
       if(e.key==='Enter'){
         try{ e.preventDefault(); e.stopPropagation(); }catch(_){ }
+        if(e.repeat || e.isComposing || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
         if(enterDebounce) return;
         enterDebounce = true;
         setTimeout(function(){ enterDebounce=false; }, 250);
@@ -231,7 +233,7 @@
       if(opened){
         input.focus();
         if(!welcomeShown && welcomeMessage && !appendedWelcomeThisOpen && msgs.childElementCount===0){ append('bot', welcomeMessage); appendedWelcomeThisOpen = true; welcomeShown = true; try{ sessionStorage.setItem(welcomeKey, '1') }catch(_){ } if(!startersDismissed){ renderStarters(); } }
-        if (msgs.childElementCount === 0) { handshakePromise = handshake(); }
+        if (!handshakePromise) { handshakePromise = handshake(); }
       } else {
         appendedWelcomeThisOpen = false;
       }
@@ -406,7 +408,8 @@
 
     function sendMessage(){
       var text = (input.value || '').trim(); if(!text) return;
-      if(sendInFlight){ return; }
+      if(dispatchGuard || sendInFlight){ return; }
+      dispatchGuard = true;
       startersDismissed = true;
       performSend(text);
     }
@@ -415,10 +418,12 @@
       // If we're still acquiring the very first server session, queue this send
       if(sessionAcquirePromise && !haveServerSession){
         pendingSends.push(String(text||''));
+        dispatchGuard = false;
         return;
       }
       if(sendInFlight){ return; }
       sendInFlight = true;
+      dispatchGuard = false;
       startersDismissed = true;
       try{ hideStarters(); }catch(_){ }
       append('user', String(text||''));
