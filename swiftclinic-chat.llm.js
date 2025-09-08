@@ -348,12 +348,12 @@
         var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
         var effectiveId = sessionId || storedId;
         // On a force-new send, do NOT include any prior sessionId in metadata
-        if(!(includeForceFlag && isFirstUserSend)){
+        if(!includeForceFlag){
           if(effectiveId){ meta.sessionId = effectiveId; }
         }
-        if(includeForceFlag && isFirstUserSend){ meta.forceNewSession = true; }
+        if(includeForceFlag){ meta.forceNewSession = true; }
         return meta;
-      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(!(includeForceFlag && isFirstUserSend)){ if(sessionId){ fallback.sessionId = sessionId; } } if(includeForceFlag && isFirstUserSend){ fallback.forceNewSession = true; } return fallback }
+      }catch(_){ var fallback = { pageUrl: location.href, referrer: document.referrer||'', welcomeMessage: welcomeMessage }; if(!includeForceFlag){ if(sessionId){ fallback.sessionId = sessionId; } } if(includeForceFlag){ fallback.forceNewSession = true; } return fallback }
     }
 
     function handshake(){
@@ -412,7 +412,8 @@
       var sendNow = function(){
         var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
         var effectiveIdSN = sessionId || storedIdSN;
-        var shouldForceNew = (isFirstUserSend && !haveServerSession);
+        // Always send exactly one of: X-Session-ID or X-New-Session
+        var shouldForceNew = !effectiveIdSN;
         var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
         if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
         var p = fetch(endpoint, {
