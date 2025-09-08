@@ -425,12 +425,13 @@
         var effectiveIdSN = sessionId || storedIdSN;
         // Always send exactly one of: X-Session-ID or X-New-Session
         var shouldForceNew = !effectiveIdSN;
-        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
+        var msgId = (function(){ try{ return 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return 'msg_'+Date.now(); } })();
+        var sendHeaders = { 'Content-Type':'application/json', 'X-Client-Message-Id': msgId, 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
         if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
         var p = fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
-          body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(shouldForceNew) })
+          body: JSON.stringify({ message: String(text||''), sessionId: (shouldForceNew ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.clientMessageId = msgId; }catch(_){ } return m; })(buildMetadata(shouldForceNew)) })
         }).then(function(r){ return r.json(); }).then(function(res){
           var data = (res && res.data) || {};
           try{
