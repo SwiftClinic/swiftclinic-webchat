@@ -61,7 +61,17 @@
     var sendInFlight = false;
     var dispatchGuard = false; // prevents duplicate send dispatch across multiple handlers
     var lastTriggerSource = 'unknown';
-    var debugEnabled = (function(){ try{ return String(ds.debug||'')==='1' }catch(_){ return false } })();
+    var debugEnabled = (function(){
+      try{
+        var flag = String(ds.debug||'');
+        if(!flag){ try{ var su=new URL(scriptEl.src); flag = su.searchParams.get('debug') || ''; }catch(_){ } }
+        if(!flag){ try{ var lu=new URL(location.href); flag = lu.searchParams.get('swiftclinic_debug') || lu.searchParams.get('sc_debug') || ''; }catch(_){ } }
+        if(!flag){ try{ flag = localStorage.getItem('swiftclinic_debug') || sessionStorage.getItem('swiftclinic_debug') || ''; }catch(_){ } }
+        if(!flag){ try{ flag = (window && window.SwiftClinicChatDebug) ? '1' : ''; }catch(_){ } }
+        return String(flag)==='1';
+      }catch(_){ return false }
+    })();
+    try{ if(debugEnabled){ console.info('[SwiftClinicChat] debug enabled'); } }catch(_){ }
     var haveServerSession = !!sessionId;
     var sessionAcquirePromise = null;
     var pendingSends = [];
@@ -379,7 +389,7 @@
       showTyping(true);
       var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
       var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||storedIdHS||'') };
-      if(debugEnabled){ try{ hsHeaders['X-Debug-Event'] = 'handshake'; }catch(_){ } }
+      if(debugEnabled){ try{ hsHeaders['X-Debug-Event'] = 'handshake'; hsHeaders['X-Debug-Enabled']='1'; }catch(_){ } }
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
@@ -441,7 +451,7 @@
         var msgId = (function(){ try{ return 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return 'msg_'+Date.now(); } })();
         var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
         if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
-        if(debugEnabled){ try{ sendHeaders['X-Debug-Trigger'] = String(lastTriggerSource||'unknown'); sendHeaders['X-Debug-Client-Message-Id'] = msgId; }catch(_){ } }
+        if(debugEnabled){ try{ sendHeaders['X-Debug-Enabled']='1'; sendHeaders['X-Debug-Trigger'] = String(lastTriggerSource||'unknown'); sendHeaders['X-Debug-Client-Message-Id'] = msgId; }catch(_){ } }
         var p = fetch(endpoint, {
           method: 'POST',
           headers: (function(h){ try{ delete h['X-Client-Message-Id']; }catch(_){ } return h; })(sendHeaders),
