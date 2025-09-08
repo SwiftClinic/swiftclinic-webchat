@@ -398,12 +398,13 @@
       var sendNow = function(){
         var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
         var effectiveIdSN = sessionId || storedIdSN;
-        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (effectiveIdSN||'') };
+        // On the very first user message, explicitly force new and DO NOT send any prior sessionId
+        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (isFirstUserSend ? '' : (effectiveIdSN||'')) };
         if(isFirstUserSend){ sendHeaders['X-New-Session'] = '1'; }
         fetch(endpoint, {
           method: 'POST',
           headers: sendHeaders,
-          body: JSON.stringify({ message: String(text||''), sessionId: (effectiveIdSN||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
+          body: JSON.stringify({ message: String(text||''), sessionId: (isFirstUserSend ? undefined : (effectiveIdSN||undefined)), userConsent: true, uiLanguage: uiLanguage, metadata: buildMetadata(true) })
         }).then(function(r){ return r.json(); }).then(function(res){
           var data = (res && res.data) || {};
           try{
