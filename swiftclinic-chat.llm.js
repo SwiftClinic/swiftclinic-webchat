@@ -49,6 +49,7 @@
     var firstPost = true;
     var handshakePromise = null;
     var isFirstUserSend = true;
+    var sendInFlight = false;
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
     try{ window.addEventListener('beforeunload', function(){ sessionId=''; }); }catch(_){ }
 
@@ -372,6 +373,8 @@
     }
 
     function performSend(text){
+      if(sendInFlight){ return; }
+      sendInFlight = true;
       startersDismissed = true;
       try{ hideStarters(); }catch(_){ }
       append('user', String(text||''));
@@ -395,7 +398,7 @@
           if(data.sessionId){ sessionId = data.sessionId; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
-        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; isFirstUserSend = false; });
+        }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){ firstPost = false; isFirstUserSend = false; sendInFlight = false; });
       };
       if(firstPost){
         if(!handshakePromise){ handshakePromise = handshake(); }
