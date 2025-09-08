@@ -358,16 +358,11 @@
 
     function extractSessionId(res){
       try{
-        var cand = null;
-        if(res){
-          if(res.sessionId) cand = res.sessionId;
-          if(!cand && res.data && res.data.sessionId) cand = res.data.sessionId;
-          if(!cand && res.data && res.data.session_id) cand = res.data.session_id;
-          if(!cand && res.data && res.data.id && /[_a-z0-9]{6,}/i.test(String(res.data.id))) cand = res.data.id;
-          if(!cand && res.metadata && res.metadata.sessionId) cand = res.metadata.sessionId;
-          if(!cand && res.data && res.data.metadata && res.data.metadata.sessionId) cand = res.data.metadata.sessionId;
-        }
-        return cand || '';
+        var sid = '';
+        if(res && res.data){ if(res.data.sessionId){ sid = String(res.data.sessionId); } else if(res.data.session_id){ sid = String(res.data.session_id); } }
+        // Ignore metadata echoes or generic ids; only trust explicit sessionId fields
+        if(/^ws_/.test(sid)){ return ''; }
+        return sid;
       }catch(_){ return ''; }
     }
 
