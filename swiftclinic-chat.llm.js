@@ -388,12 +388,15 @@
     function handshake(){
       showTyping(true);
       var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
-      var hsHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (sessionId||storedIdHS||'') };
+      var effectiveIdHS = sessionId || storedIdHS;
+      var hsHeaders = { 'Content-Type':'application/json' };
+      // On a fresh load or reload, do not send an empty X-Session-ID; explicitly request a new one
+      if(effectiveIdHS){ hsHeaders['X-Session-ID'] = effectiveIdHS; } else { hsHeaders['X-New-Session'] = '1'; }
       if(debugEnabled){ try{ hsHeaders['X-Debug-Event'] = 'handshake'; hsHeaders['X-Debug-Enabled']='1'; }catch(_){ } }
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
-        body: JSON.stringify({ message: '', sessionId: (sessionId||undefined), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.init = true; }catch(_){ } return m; })(buildMetadata(false)) })
+        body: JSON.stringify({ message: '', sessionId: (effectiveIdHS?effectiveIdHS:undefined), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.init = true; }catch(_){ } return m; })(buildMetadata(!effectiveIdHS)) })
       }).then(function(r){ return r.text(); }).then(function(t){ try{ return t?JSON.parse(t):{} }catch(_){ return {} } }).then(function(res){
         var data = (res && res.data) || {};
         try{
