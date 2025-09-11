@@ -364,7 +364,7 @@
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
-        var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+        var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
         var effectiveId = sessionId || storedId;
         // On a force-new send, do NOT include any prior sessionId in metadata
         if(!includeForceFlag){
@@ -387,7 +387,7 @@
 
     function handshake(){
       showTyping(true);
-      var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+      var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
       var effectiveIdHS = sessionId || storedIdHS;
       var hsHeaders = { 'Content-Type':'application/json' };
       // On a fresh load or reload, do not send an empty X-Session-ID; explicitly request a new one
@@ -396,7 +396,7 @@
       return fetch(endpoint, {
         method: 'POST',
         headers: hsHeaders,
-        body: JSON.stringify({ message: '', sessionId: (effectiveIdHS?effectiveIdHS:undefined), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.init = true; }catch(_){ } return m; })(buildMetadata(!effectiveIdHS)) })
+        body: JSON.stringify({ message: '', sessionId: (effectiveIdHS?effectiveIdHS:undefined), userConsent: true, uiLanguage: uiLanguage, metadata: (function(m){ try{ m.init = true; }catch(_){ } return m; })(buildMetadata(false)) })
       }).then(function(r){ return r.text(); }).then(function(t){ try{ return t?JSON.parse(t):{} }catch(_){ return {} } }).then(function(res){
         var data = (res && res.data) || {};
         try{
@@ -404,7 +404,7 @@
           if(allowedFromServer){ applyAllowed(allowedFromServer); }
         }catch(_){ }
         var sid = extractSessionId(res);
-        if(sid){ sessionId = sid; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+        if(sid){ sessionId = sid; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } try{ window.__SwiftClinicSessionId = sessionId }catch(_){ } }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
         if (preferLocalWelcome){
@@ -447,7 +447,7 @@
       input.value='';
       showTyping(true);
       var sendNow = function(){
-        var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+        var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
         var effectiveIdSN = sessionId || storedIdSN;
         // Always send exactly one of: X-Session-ID or X-New-Session
         var shouldForceNew = !effectiveIdSN;
@@ -466,7 +466,7 @@
             if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
           }catch(_){ }
           var sid2 = extractSessionId(res);
-          if(sid2){ sessionId = sid2; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } }
+          if(sid2){ sessionId = sid2; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } try{ window.__SwiftClinicSessionId = sessionId }catch(_){ } }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
         }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){
