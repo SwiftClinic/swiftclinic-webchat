@@ -390,8 +390,8 @@
       var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
       var effectiveIdHS = sessionId || storedIdHS;
       var hsHeaders = { 'Content-Type':'application/json' };
-      // On a fresh load or reload, do not send an empty X-Session-ID; explicitly request a new one
-      if(effectiveIdHS){ hsHeaders['X-Session-ID'] = effectiveIdHS; } else { hsHeaders['X-New-Session'] = '1'; }
+      // If we have an id, send it; otherwise omit any session headers and let server create a new one
+      if(effectiveIdHS){ hsHeaders['X-Session-ID'] = effectiveIdHS; }
       if(debugEnabled){ try{ hsHeaders['X-Debug-Event'] = 'handshake'; hsHeaders['X-Debug-Enabled']='1'; }catch(_){ } }
       return fetch(endpoint, {
         method: 'POST',
@@ -452,8 +452,8 @@
         // Always send exactly one of: X-Session-ID or X-New-Session
         var shouldForceNew = !effectiveIdSN;
         var msgId = (function(){ try{ return 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return 'msg_'+Date.now(); } })();
-        var sendHeaders = { 'Content-Type':'application/json', 'X-Session-ID': (shouldForceNew ? '' : (effectiveIdSN||'')) };
-        if(shouldForceNew){ sendHeaders['X-New-Session'] = '1'; }
+        var sendHeaders = { 'Content-Type':'application/json' };
+        if(!shouldForceNew){ sendHeaders['X-Session-ID'] = (effectiveIdSN||''); }
         if(debugEnabled){ try{ sendHeaders['X-Debug-Enabled']='1'; sendHeaders['X-Debug-Trigger'] = String(lastTriggerSource||'unknown'); sendHeaders['X-Debug-Client-Message-Id'] = msgId; }catch(_){ } }
         var p = fetch(endpoint, {
           method: 'POST',
