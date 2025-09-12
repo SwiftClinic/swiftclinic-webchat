@@ -6,11 +6,11 @@
 */
 (function(){
   try{
-    // Prevent double-initialization if the script is included twice or another build already mounted
+    // Prevent double-initialization if an existing mounted instance is active.
+    // Do NOT set the mounted flag here; we will set it only after successful init.
     try{
       if(window.__SwiftClinicChatMounted){ return; }
-      if(window.SwiftClinicChat && typeof window.SwiftClinicChat.send === 'function'){ return; }
-      window.__SwiftClinicChatMounted = true;
+      if(window.SwiftClinicChat && typeof window.SwiftClinicChat.send === 'function' && window.__SwiftClinicChatMounted){ return; }
     }catch(_){ }
     var scriptEl = document.currentScript || (function(){ var s=document.getElementsByTagName('script'); return s[s.length-1] })();
     if(!scriptEl) return;
@@ -506,7 +506,10 @@
     // Starters are rendered right after the welcome message via renderStarters()
 
     // Public API
-    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ performSend(String(t)); } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; } }; }catch(_){ }
+    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ performSend(String(t)); } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; }, destroy: function(){ try{ if(host && host.parentNode){ host.parentNode.removeChild(host); } }catch(_){ } try{ window.__SwiftClinicChatMounted = false; }catch(_){ } try{ delete window.SwiftClinicChat; }catch(_){ } } }; }catch(_){ }
+
+    // Mark as successfully mounted for this page lifecycle
+    try{ window.__SwiftClinicChatMounted = true; window.__SwiftClinicChatHost = host; }catch(_){ }
 
     if(autoOpen){ toggle(true); }
 
