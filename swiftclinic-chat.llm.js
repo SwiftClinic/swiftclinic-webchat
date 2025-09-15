@@ -1,6 +1,6 @@
 /* SwiftClinic Webchat (LLM-integrated) - lightweight, readable build
    - Supports data-webhook-id or data-webhook-url
-   - Persists sessionId in localStorage
+   - Keeps sessionId only in memory (clears on page reload)
    - Sends metadata (pageUrl, referrer, timezone, language, UTM)
    - Exposes window.SwiftClinicChat API: open, close, send, getSessionId, isOpen
 */
@@ -48,13 +48,8 @@
     var autoOpen     = String(ds.autoOpen||'false')==='true';
     var uiScale     = (function(){ var v=parseFloat(ds.scale||ds.uiScale||'1'); return (v&&v>0)? v : 1; })();
 
-    // Namespaced session storage key: API host + webhookId (distinguish monolith vs PMS hosts)
-    var scHost = (function(){
-      try{ return (new URL(endpoint)).host || 'unknown'; }catch(_){ }
-      try{ return (location && location.host) ? String(location.host) : 'unknown'; }catch(_){ return 'unknown' }
-    })();
-    var SESSION_KEY = 'swiftclinic_chat_session:' + scHost + ':' + (webhookId || '');
-    var sessionId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ return '' } })();
+    // Keep session id only in memory for this page lifecycle
+    var sessionId = '';
     var firstPost = true;
     var handshakePromise = null;
     var isFirstUserSend = true;
@@ -76,16 +71,15 @@
     var sessionAcquirePromise = null;
     var pendingSends = [];
     var isReload = (function(){ try{ var nav = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null; if(nav && nav.type){ return nav.type === 'reload'; } if(performance && performance.navigation){ return performance.navigation.type === 1; } }catch(_){ } return false; })();
-    try{ window.addEventListener('beforeunload', function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; isFirstUserSend=true; firstPost=true; haveServerSession=false; }); }catch(_){ }
+    // No persistence across reloads; sessionId lives only in memory
 
     // Optional: allow forcing a fresh session via data-new-session="1"
     try{
       var forceNewOnLoad = (String(scriptEl.getAttribute('data-new-session')||'') === '1');
-      if(forceNewOnLoad){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; }
+      if(forceNewOnLoad){ sessionId=''; firstPost=true; }
     }catch(_){ }
 
-    // If this page load is a browser reload, force a fresh client session
-    try{ if(isReload){ localStorage.removeItem(SESSION_KEY); sessionId=''; firstPost=true; isFirstUserSend=true; haveServerSession=false; } }catch(_){ }
+    // On reload, the page context resets; no session persistence is kept
 
     var host = document.createElement('div');
     host.style.position='fixed'; host.style.zIndex='2147483647'; host.style.bottom='20px';
@@ -364,8 +358,7 @@
         ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=params.get(k); if(v) utm[k]=v });
         var tz=''; try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '' }catch(_){ }
         var meta = { pageUrl: location.href, referrer: document.referrer||'', timezone: tz, language: (navigator.language||''), utm: utm, welcomeMessage: welcomeMessage };
-        var storedId = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
-        var effectiveId = sessionId || storedId;
+        var effectiveId = sessionId;
         // On a force-new send, do NOT include any prior sessionId in metadata
         if(!includeForceFlag){
           if(effectiveId){ meta.sessionId = effectiveId; }
@@ -387,8 +380,7 @@
 
     function handshake(){
       showTyping(true);
-      var storedIdHS = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
-      var effectiveIdHS = sessionId || storedIdHS;
+      var effectiveIdHS = sessionId;
       var hsHeaders = { 'Content-Type':'application/json' };
       // If we have an id, send it; otherwise omit any session headers and let server create a new one
       if(effectiveIdHS){ hsHeaders['X-Session-ID'] = effectiveIdHS; }
@@ -404,7 +396,7 @@
           if(allowedFromServer){ applyAllowed(allowedFromServer); }
         }catch(_){ }
         var sid = extractSessionId(res);
-        if(sid){ sessionId = sid; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } try{ window.__SwiftClinicSessionId = sessionId }catch(_){ } }
+        if(sid){ sessionId = sid; haveServerSession=true; }
         // Prefer configured welcome on first open if provided
         var preferLocalWelcome = (!welcomeShown && welcomeMessage && msgs.childElementCount === 0);
         if (preferLocalWelcome){
@@ -447,8 +439,7 @@
       input.value='';
       showTyping(true);
       var sendNow = function(){
-        var storedIdSN = (function(){ try{ return localStorage.getItem(SESSION_KEY) || '' }catch(_){ } try{ return (window && window.__SwiftClinicSessionId) || '' }catch(_){ } return '' })();
-        var effectiveIdSN = sessionId || storedIdSN;
+        var effectiveIdSN = sessionId;
         // Always send exactly one of: X-Session-ID or X-New-Session
         var shouldForceNew = !effectiveIdSN;
         var msgId = (function(){ try{ return 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return 'msg_'+Date.now(); } })();
@@ -466,7 +457,7 @@
             if(allowedFromServer2){ applyAllowed(allowedFromServer2); }
           }catch(_){ }
           var sid2 = extractSessionId(res);
-          if(sid2){ sessionId = sid2; haveServerSession=true; try{ localStorage.setItem(SESSION_KEY, sessionId) }catch(_){ } try{ window.__SwiftClinicSessionId = sessionId }catch(_){ } }
+          if(sid2){ sessionId = sid2; haveServerSession=true; }
           if(data.message){ finishTypingWith(data.message); }
           else { showTyping(false); }
         }).catch(function(){ finishTypingWith('Sorry, something went wrong. Please try again.'); }).finally(function(){
@@ -506,7 +497,7 @@
     // Starters are rendered right after the welcome message via renderStarters()
 
     // Public API
-    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ performSend(String(t)); } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ try{ localStorage.removeItem(SESSION_KEY) }catch(_){ } sessionId=''; firstPost=true; }, destroy: function(){ try{ if(host && host.parentNode){ host.parentNode.removeChild(host); } }catch(_){ } try{ window.__SwiftClinicChatMounted = false; }catch(_){ } try{ delete window.SwiftClinicChat; }catch(_){ } } }; }catch(_){ }
+    try{ window.SwiftClinicChat = { open: function(){ toggle(true) }, close: function(){ toggle(false) }, send: function(t){ if(typeof t==='string'){ performSend(String(t)); } }, getSessionId: function(){ return sessionId||'' }, isOpen: function(){ return !!opened }, setUiLanguage: function(code){ uiLanguage=String(code||'en').toLowerCase(); try{ localStorage.setItem(langStorageKey, uiLanguage) }catch(_){ } if(langSelect){ langSelect.value = uiLanguage; langFlag.src = codeToFlagUrl(uiLanguage); } }, reset: function(){ sessionId=''; firstPost=true; }, destroy: function(){ try{ if(host && host.parentNode){ host.parentNode.removeChild(host); } }catch(_){ } try{ window.__SwiftClinicChatMounted = false; }catch(_){ } try{ delete window.SwiftClinicChat; }catch(_){ } } }; }catch(_){ }
 
     // Mark as successfully mounted for this page lifecycle
     try{ window.__SwiftClinicChatMounted = true; window.__SwiftClinicChatHost = host; }catch(_){ }
